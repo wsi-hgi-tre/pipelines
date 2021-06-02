@@ -196,14 +196,10 @@ task Aggregate {
       head -1 ${autosomeGWAS[0]}
 
       # Write autosomal GWAS (sans header)
-      for f in ${sep=" " autosomeGWAS}; do
-        tail -n+2 $f
-      done
+      tail -qn+2 ${sep=" " autosomeGWAS}
 
       # Write allosomal GWAS (sans header, with column 3 duplicated)
-      for f in ${sep=" " allosomeGWAS}; do
-        awk 'NR > 1 { $3 = $3 FS $3; print $0 }' $f
-      done
+      awk 'FNR > 1 { $3 = $3 FS $3; print $0 }' ${sep=" " allosomeGWAS}
     } \
     | gzip -c \
     > step3-${phenotype}.gwas.gz
