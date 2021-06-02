@@ -61,11 +61,16 @@ workflow SAIGE_BinaryTraits {
           varianceRatio = FitNullGLMM.varianceRatio
       }
     }
+
+    call Aggregate {
+      input:
+        phenotype    = p,
+        autosomeGWAS = SPATests_Autosome.GWAS,
+        allosomeGWAS = SPATests_Allosome.GWAS
+    }
   }
 
-  output {
-    # TODO
-  }
+  output { Aggregate.GWAS }
 }
 
 task FitNullGLMM {
@@ -95,7 +100,7 @@ task FitNullGLMM {
   runtime {
     docker: "eu.gcr.io/fg-qmul-testing-master/saige:0.44.5"
     cpu: 8
-    memory: "8 GB"
+    memory: "8GiB"
 
     # London
     zones: "europe-west2-b"
@@ -133,7 +138,7 @@ task SPATests_Autosome {
   runtime {
     docker: "eu.gcr.io/fg-qmul-testing-master/saige:0.44.5"
     cpu: 1
-    memory: "1 GB"
+    memory: "1GiB"
 
     # London
     zones: "europe-west2-b"
@@ -173,7 +178,45 @@ task SPATests_Allosome {
   runtime {
     docker: "eu.gcr.io/fg-qmul-testing-master/saige:0.44.5"
     cpu: 1
-    memory: "1 GB"
+    memory: "1GiB"
+
+    # London
+    zones: "europe-west2-b"
+  }
+}
+
+task Aggregate {
+  String      phenotype
+  Array[File] autosomeGWAS
+  Array[File] allosomeGWAS
+
+  command <<<
+    {
+      # Write header
+      head -1 ${autosomeGWAS[0]}
+
+      # Write autosomal GWAS (sans header)
+      for f in ${sep=" " autosomeGWAS}; do
+        tail -n+2 $f
+      done
+
+      # Write allosomal GWAS (sans header, with column 3 duplicated)
+      for f in ${sep=" " allosomeGWAS}; do
+        awk 'NR > 1 { $3 = $3 FS $3; print $0 }' $f
+      done
+    } \
+    | gzip -c \
+    > step3-${phenotype}.gwas.gz
+  >>>
+
+  output {
+    File GWAS = "step3-${phenotype}.gwas.gz"
+  }
+
+  runtime {
+    docker: "eu.gcr.io/fg-qmul-testing-master/saige:0.44.5"
+    cpu: 1
+    memory: "1GiB"
 
     # London
     zones: "europe-west2-b"
