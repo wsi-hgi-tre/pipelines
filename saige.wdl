@@ -82,7 +82,8 @@ workflow SAIGE {
     call Aggregate {
       input:
         phenotype    = p,
-        autosomeGWAS = SPATests_Autosome.GWAS
+        autosomeGWAS = SPATests_Autosome.GWAS,
+        allosomeGWAS = []
         # TODO No allosome yet...
         # allosomeGWAS = SPATests_Allosome.GWAS
     }
@@ -214,8 +215,7 @@ task SPATests_Allosome {
 task Aggregate {
   String      phenotype
   Array[File] autosomeGWAS
-  # TODO No allosome yet...
-  # Array[File] allosomeGWAS
+  Array[File] allosomeGWAS
 
   command <<<
     {
