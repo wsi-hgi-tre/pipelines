@@ -1,4 +1,4 @@
-# SAIGE Binary Traits Workflow
+# SAIGE Workflow
 # Copyright (c) 2021 Genome Research Limits
 # Licensed under GPLv3, or later
 
@@ -6,7 +6,7 @@
 # Adapted from SLURM scripts by David van Heel <d.vanheel@qmul.ac.uk>
 # Incorporating Sanger requirements by Qinqin Huang <qh1@sanger.ac.uk>
 
-workflow SAIGE_BinaryTraits {
+workflow SAIGE {
   # NOTE The allosome part of the workflow has been commented out;
   # search for "No allosome yet..." in the code to reinstate.
 
