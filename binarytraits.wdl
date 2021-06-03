@@ -15,8 +15,19 @@ workflow SAIGE_BinaryTraits {
   ]
 
   # Fit Null GLMM Inputs
-  File plinkFile  # PLINK file for creating the GRM
-  File phenoFile  # Phenotype file
+  # TODO Read covariants from file, rather than hardcoding them here
+  File          plinkFile  # PLINK file for creating the GRM
+  File          phenoFile  # Phenotype file
+  Array[String] covariants = [
+    "EthnicTightPCAPakBang_Dec2020",
+    "age_at_recruit",
+    "age_at_recruit_sq",
+    "S1QST_Gender",
+    "PC1",  "PC2",  "PC3",  "PC4",  "PC5",
+    "PC6",  "PC7",  "PC8",  "PC9",  "PC10",
+    "PC11", "PC12", "PC13", "PC14", "PC15",
+    "PC16", "PC17", "PC18", "PC19", "PC20"
+  ]
 
   # SPA Test Inputs: Autosome
   File autosomeBGENs  # File of bgen filenames, per autosomal chromosome
@@ -31,9 +42,10 @@ workflow SAIGE_BinaryTraits {
     # Step 1: Fit Null GLMM
     call FitNullGLMM {
       input:
-        phenotype = p,
-        plinkFile = plinkFile,
-        phenoFile = phenoFile
+        phenotype  = p,
+        plinkFile  = plinkFile,
+        phenoFile  = phenoFile,
+        covariants = covariants
     }
 
     # Step 2: SPA Tests
@@ -74,17 +86,17 @@ workflow SAIGE_BinaryTraits {
 }
 
 task FitNullGLMM {
-  File   plinkFile
-  File   phenoFile
-  String phenotype
+  File          plinkFile
+  File          phenoFile
+  String        phenotype
+  Array[String] covariants
 
-  # TODO Should the list of covariants be an input?
   command {
     step1_fitNULLGLMM.R \
       --plinkFile=${plinkFile} \
       --phenoFile=${phenoFile} \
       --phenoCol=${phenotype} \
-      --covarColList=EthnicTightPCAPakBang_Dec2020,age_at_recruit,age_at_recruit_sq,S1QST_Gender,PC1,PC2,PC3,PC4,PC5,PC6,PC7,PC8,PC9,PC10,PC11,PC12,PC13,PC14,PC15,PC16,PC17,PC18,PC19,PC20 \
+      --covarColList=${sep=',' covariants} \
       --sampleIDColinphenoFile=SAMPLE_ID \
       --nThreads=8 \
       --LOCO=FALSE \
@@ -196,10 +208,10 @@ task Aggregate {
       head -1 ${autosomeGWAS[0]}
 
       # Write autosomal GWAS (sans header)
-      tail -qn+2 ${sep=" " autosomeGWAS}
+      tail -qn+2 ${sep=' ' autosomeGWAS}
 
       # Write allosomal GWAS (sans header, with column 3 duplicated)
-      awk 'FNR > 1 { $3 = $3 FS $3; print $0 }' ${sep=" " allosomeGWAS}
+      awk 'FNR > 1 { $3 = $3 FS $3; print $0 }' ${sep=' ' allosomeGWAS}
     } \
     | gzip -c \
     > step3-${phenotype}.gwas.gz
