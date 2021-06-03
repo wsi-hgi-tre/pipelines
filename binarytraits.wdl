@@ -4,14 +4,22 @@
 
 # Author: Christopher Harrison <ch12@sanger.ac.uk>
 # Adapted from SLURM scripts by David van Heel <d.vanheel@qmul.ac.uk>
+# Incorporating Sanger requirements by Qinqin Huang <qh1@sanger.ac.uk>
 
 workflow SAIGE_BinaryTraits {
+  # NOTE The allosome part of the workflow has been commented out;
+  # search for "No allosome yet..." in the code to reinstate.
+
   # TODO Read phenotypes from file, rather than hardcoding them here
   Array[String] phenotypes = [
-    "ANA_A2_V2",
-    "ANA_B1_V2",
-    "ANA_B2_V2",
-    "ANA_C2_v2"
+    # Continuous Traits
+    "c_random",  "c_CADSA",  "c_CADmeta", "c_BMI",     "c_HDL",
+    "c_LDL",     "c_TG",
+
+    # Binary Traits
+    "b_CADSA1",  "b_CADSA2", "b_HDL1",    "b_HDL2",    "b_LDL1",
+    "b_LDL2",    "b_BMI1",   "b_BMI2",    "b_random1", "b_random2",
+    "b_random3", "b_random4"
   ]
 
   # Fit Null GLMM Inputs
@@ -19,14 +27,9 @@ workflow SAIGE_BinaryTraits {
   File          plinkFile  # PLINK file for creating the GRM
   File          phenoFile  # Phenotype file
   Array[String] covariants = [
-    "EthnicTightPCAPakBang_Dec2020",
-    "age_at_recruit",
-    "age_at_recruit_sq",
-    "S1QST_Gender",
-    "PC1",  "PC2",  "PC3",  "PC4",  "PC5",
-    "PC6",  "PC7",  "PC8",  "PC9",  "PC10",
-    "PC11", "PC12", "PC13", "PC14", "PC15",
-    "PC16", "PC17", "PC18", "PC19", "PC20"
+    "sex",  "PC1",  "PC2",  "PC3",  "PC4",  "PC5",  "PC6",
+    "PC7",  "PC8",  "PC9",  "PC10", "PC11", "PC12", "PC13",
+    "PC14", "PC15", "PC16", "PC17", "PC18", "PC19", "PC20"
   ]
 
   # SPA Test Inputs: Autosome
@@ -34,9 +37,10 @@ workflow SAIGE_BinaryTraits {
   File sampleFile     # File of IDs of samples in the dosage file
   Array[String] bgenFiles = read_lines(autosomeBGENs)
 
-  # SPA Test Inputs: Allosome
-  File allosomeVCFs  # File of allosomal chromosome-VCF filename pairs, tab-delimited
-  Map[String, String] vcfFiles = read_map(allosomeVCFs)
+  # TODO No allosome yet...
+  # # SPA Test Inputs: Allosome
+  # File allosomeVCFs  # File of allosomal chromosome-VCF filename pairs, tab-delimited
+  # Map[String, String] vcfFiles = read_map(allosomeVCFs)
 
   scatter (p in phenotypes) {
     # Step 1: Fit Null GLMM
@@ -62,23 +66,25 @@ workflow SAIGE_BinaryTraits {
       }
     }
 
-    scatter (chr in ["X"]) {
-      call SPATests_Allosome {
-        input:
-          phenotype     = p,
-          chr           = chr,
-          vcfFile       = vcfFiles[chr],
-          vcfIndex      = "${vcfFiles[chr]}.tbi",
-          GMMATModel    = FitNullGLMM.GMMATModel,
-          varianceRatio = FitNullGLMM.varianceRatio
-      }
-    }
+    # TODO No allosome yet...
+    # scatter (chr in ["X"]) {
+    #   call SPATests_Allosome {
+    #     input:
+    #       phenotype     = p,
+    #       chr           = chr,
+    #       vcfFile       = vcfFiles[chr],
+    #       vcfIndex      = "${vcfFiles[chr]}.tbi",
+    #       GMMATModel    = FitNullGLMM.GMMATModel,
+    #       varianceRatio = FitNullGLMM.varianceRatio
+    #   }
+    # }
 
     call Aggregate {
       input:
         phenotype    = p,
-        autosomeGWAS = SPATests_Autosome.GWAS,
-        allosomeGWAS = SPATests_Allosome.GWAS
+        autosomeGWAS = SPATests_Autosome.GWAS
+        # TODO No allosome yet...
+        # allosomeGWAS = SPATests_Allosome.GWAS
     }
   }
 
@@ -92,15 +98,23 @@ task FitNullGLMM {
   Array[String] covariants
 
   command {
+    # We have to do this in the shell, because there's no
+    # way to extract or match against substrings in WDL
+    case "${phenotype}" in
+      c_*) TRAIT_TYPE="quantitative";;
+      b_*) TRAIT_TYPE="binary";;
+      *)   exit 1;;
+    esac
+
     step1_fitNULLGLMM.R \
       --plinkFile=${plinkFile} \
       --phenoFile=${phenoFile} \
       --phenoCol=${phenotype} \
       --covarColList=${sep=',' covariants} \
-      --sampleIDColinphenoFile=SAMPLE_ID \
+      --sampleIDColinphenoFile=ID \
       --nThreads=8 \
       --LOCO=FALSE \
-      --traitType=binary \
+      --traitType=$TRAIT_TYPE \
       --outputPrefix=step1-${phenotype}
   }
 
@@ -200,7 +214,8 @@ task SPATests_Allosome {
 task Aggregate {
   String      phenotype
   Array[File] autosomeGWAS
-  Array[File] allosomeGWAS
+  # TODO No allosome yet...
+  # Array[File] allosomeGWAS
 
   command <<<
     {
@@ -210,8 +225,9 @@ task Aggregate {
       # Write autosomal GWAS (sans header)
       tail -qn+2 ${sep=' ' autosomeGWAS}
 
-      # Write allosomal GWAS (sans header, with column 3 duplicated)
-      awk 'FNR > 1 { $3 = $3 FS $3; print $0 }' ${sep=' ' allosomeGWAS}
+      # TODO No allosome yet...
+      # # Write allosomal GWAS (sans header, with column 3 duplicated)
+      # awk 'FNR > 1 { $3 = $3 FS $3; print $0 }' ${sep=' ' allosomeGWAS}
     } \
     | gzip -c \
     > step3-${phenotype}.gwas.gz
