@@ -6,40 +6,44 @@
 # Adapted from SLURM scripts by David van Heel <d.vanheel@qmul.ac.uk>
 # Incorporating Sanger requirements by Qinqin Huang <qh1@sanger.ac.uk>
 
+version 1.0
+
 workflow SAIGE {
   # NOTE The allosome part of the workflow has been commented out;
   # search for "No allosome yet..." in the code to reinstate.
 
+  input {
+    File plinkFile      # PLINK file for creating the GRM
+    File phenoFile      # Phenotype file
+    File autosomeBGENs  # File of bgen filenames, per autosomal chromosome
+    File sampleFile     # File of IDs of samples in the dosage file
+
+    # TODO No allosome yet...
+    # File allosomeVCFs   # File of allosomal chromosome-VCF filename pairs, tab-delimited
+  }
+
   # TODO Read phenotypes from file, rather than hardcoding them here
   Array[String] phenotypes = [
-    # Continuous Traits
+    # Continuous traits
     "c_random",  "c_CADSA",  "c_CADmeta", "c_BMI",     "c_HDL",
     "c_LDL",     "c_TG",
 
-    # Binary Traits
+    # Binary traits
     "b_CADSA1",  "b_CADSA2", "b_HDL1",    "b_HDL2",    "b_LDL1",
     "b_LDL2",    "b_BMI1",   "b_BMI2",    "b_random1", "b_random2",
     "b_random3", "b_random4"
   ]
 
-  # Fit Null GLMM Inputs
   # TODO Read covariants from file, rather than hardcoding them here
-  File          plinkFile  # PLINK file for creating the GRM
-  File          phenoFile  # Phenotype file
   Array[String] covariants = [
     "sex",  "PC1",  "PC2",  "PC3",  "PC4",  "PC5",  "PC6",
     "PC7",  "PC8",  "PC9",  "PC10", "PC11", "PC12", "PC13",
     "PC14", "PC15", "PC16", "PC17", "PC18", "PC19", "PC20"
   ]
 
-  # SPA Test Inputs: Autosome
-  File autosomeBGENs  # File of bgen filenames, per autosomal chromosome
-  File sampleFile     # File of IDs of samples in the dosage file
+  # Read SPA test inputs
   Array[String] bgenFiles = read_lines(autosomeBGENs)
-
   # TODO No allosome yet...
-  # # SPA Test Inputs: Allosome
-  # File allosomeVCFs  # File of allosomal chromosome-VCF filename pairs, tab-delimited
   # Map[String, String] vcfFiles = read_map(allosomeVCFs)
 
   scatter (p in phenotypes) {
@@ -83,20 +87,26 @@ workflow SAIGE {
       input:
         phenotype    = p,
         autosomeGWAS = SPATests_Autosome.GWAS,
-        allosomeGWAS = []
+
         # TODO No allosome yet...
         # allosomeGWAS = SPATests_Allosome.GWAS
+        allosomeGWAS = []
     }
   }
 
-  output { Aggregate.GWAS }
+  output {
+    # Array of aggregated GWAS; one for each phenotype
+    Array[File] GWAS = Aggregate.GWAS
+  }
 }
 
 task FitNullGLMM {
-  File          plinkFile
-  File          phenoFile
-  String        phenotype
-  Array[String] covariants
+  input {
+    File          plinkFile
+    File          phenoFile
+    String        phenotype
+    Array[String] covariants
+  }
 
   command {
     # We have to do this in the shell, because there's no
@@ -126,22 +136,22 @@ task FitNullGLMM {
 
   runtime {
     docker: "eu.gcr.io/fg-qmul-testing-master/saige:0.44.5"
-    cpu: 8
+    cpu:    8
     memory: "8GiB"
-
-    # London
-    zones: "europe-west2-b"
+    zones:  "europe-west2-b" # London
   }
 }
 
 # TODO Generalise this task, so it's not split by auto- and allosome
 task SPATests_Autosome {
-  String phenotype
-  String chr
-  File   bgenFile
-  File   sampleFile
-  File   GMMATModel
-  File   varianceRatio
+  input {
+    String phenotype
+    String chr
+    File   bgenFile
+    File   sampleFile
+    File   GMMATModel
+    File   varianceRatio
+  }
 
   command {
     step2_SPAtests.R \
@@ -164,22 +174,22 @@ task SPATests_Autosome {
 
   runtime {
     docker: "eu.gcr.io/fg-qmul-testing-master/saige:0.44.5"
-    cpu: 1
+    cpu:    1
     memory: "1GiB"
-
-    # London
-    zones: "europe-west2-b"
+    zones:  "europe-west2-b" # London
   }
 }
 
 # TODO Generalise this task, so it's not split by auto- and allosome
 task SPATests_Allosome {
-  String phenotype
-  String chr
-  File   vcfFile
-  File   vcfIndex
-  File   GMMATModel
-  File   varianceRatio
+  input {
+    String phenotype
+    String chr
+    File   vcfFile
+    File   vcfIndex
+    File   GMMATModel
+    File   varianceRatio
+  }
 
   command {
     step2_SPAtests.R \
@@ -204,18 +214,18 @@ task SPATests_Allosome {
 
   runtime {
     docker: "eu.gcr.io/fg-qmul-testing-master/saige:0.44.5"
-    cpu: 1
+    cpu:    1
     memory: "1GiB"
-
-    # London
-    zones: "europe-west2-b"
+    zones:  "europe-west2-b" # London
   }
 }
 
 task Aggregate {
-  String      phenotype
-  Array[File] autosomeGWAS
-  Array[File] allosomeGWAS
+  input {
+    String      phenotype
+    Array[File] autosomeGWAS
+    Array[File] allosomeGWAS
+  }
 
   command <<<
     {
@@ -239,10 +249,8 @@ task Aggregate {
 
   runtime {
     docker: "eu.gcr.io/fg-qmul-testing-master/saige:0.44.5"
-    cpu: 1
+    cpu:    1
     memory: "1GiB"
-
-    # London
-    zones: "europe-west2-b"
+    zones:  "europe-west2-b" # London
   }
 }
