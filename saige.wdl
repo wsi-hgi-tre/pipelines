@@ -111,22 +111,22 @@ task FitNullGLMM {
   command {
     # We have to do this in the shell, because there's no
     # way to extract or match against substrings in WDL
-    case "${phenotype}" in
+    case "~{phenotype}" in
       c_*) TRAIT_TYPE="quantitative";;
       b_*) TRAIT_TYPE="binary";;
       *)   exit 1;;
     esac
 
     step1_fitNULLGLMM.R \
-      --plinkFile=${plinkFile} \
-      --phenoFile=${phenoFile} \
-      --phenoCol=${phenotype} \
-      --covarColList=${sep=',' covariants} \
+      --plinkFile=~{plinkFile} \
+      --phenoFile=~{phenoFile} \
+      --phenoCol=~{phenotype} \
+      --covarColList=~{sep=',' covariants} \
       --sampleIDColinphenoFile=ID \
       --nThreads=8 \
       --LOCO=FALSE \
       --traitType=$TRAIT_TYPE \
-      --outputPrefix=step1-${phenotype}
+      --outputPrefix=step1-~{phenotype}
   }
 
   output {
@@ -155,17 +155,17 @@ task SPATests_Autosome {
 
   command {
     step2_SPAtests.R \
-      --bgenFile=${bgenFile} \
-      --sampleFile=${sampleFile} \
+      --bgenFile=~{bgenFile} \
+      --sampleFile=~{sampleFile} \
       --minMAC=5 \
-      --GMMATmodelFile=${GMMATModel} \
-      --varianceRatioFile=${varianceRatio} \
+      --GMMATmodelFile=~{GMMATModel} \
+      --varianceRatioFile=~{varianceRatio} \
       --numLinesOutput=1000 \
       --IsOutputNinCaseCtrl=TRUE \
       --IsOutputHetHomCountsinCaseCtrl=TRUE \
       --IsOutputAFinCaseCtrl=TRUE \
       --LOCO=FALSE \
-      --SAIGEOutputFile=step2-${phenotype}-chr${chr}.gwas
+      --SAIGEOutputFile=step2-~{phenotype}-chr~{chr}.gwas
   }
 
   output {
@@ -193,19 +193,19 @@ task SPATests_Allosome {
 
   command {
     step2_SPAtests.R \
-      --vcfFile=${vcfFile} \
-      --vcfFileIndex=${vcfIndex} \
+      --vcfFile=~{vcfFile} \
+      --vcfFileIndex=~{vcfIndex} \
       --vcfField=DS \
-      --chrom=chr${chr} \
+      --chrom=chr~{chr} \
       --minMAC=5 \
-      --GMMATmodelFile=${GMMATModel} \
-      --varianceRatioFile=${varianceRatio} \
+      --GMMATmodelFile=~{GMMATModel} \
+      --varianceRatioFile=~{varianceRatio} \
       --numLinesOutput=1000 \
       --IsOutputNinCaseCtrl=TRUE \
       --IsOutputHetHomCountsinCaseCtrl=TRUE \
       --IsOutputAFinCaseCtrl=TRUE \
       --LOCO=FALSE \
-      --SAIGEOutputFile=step2-${phenotype}-chr${chr}.gwas
+      --SAIGEOutputFile=step2-~{phenotype}-chr~{chr}.gwas
   }
 
   output {
@@ -230,17 +230,17 @@ task Aggregate {
   command <<<
     {
       # Write header
-      head -1 ${autosomeGWAS[0]}
+      head -1 ~{autosomeGWAS[0]}
 
       # Write autosomal GWAS (sans header)
-      tail -qn+2 ${sep=' ' autosomeGWAS}
+      tail -qn+2 ~{sep=' ' autosomeGWAS}
 
       # TODO No allosome yet...
       # # Write allosomal GWAS (sans header, with column 3 duplicated)
-      # awk 'FNR > 1 { $3 = $3 FS $3; print $0 }' ${sep=' ' allosomeGWAS}
+      # awk 'FNR > 1 { $3 = $3 FS $3; print $0 }' ~{sep=' ' allosomeGWAS}
     } \
     | gzip -c \
-    > step3-${phenotype}.gwas.gz
+    > step3-~{phenotype}.gwas.gz
   >>>
 
   output {
