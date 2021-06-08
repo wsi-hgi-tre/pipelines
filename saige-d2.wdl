@@ -29,8 +29,8 @@ workflow SAIGE {
 
   # Fit Null GLMM Inputs
   # TODO Read covariants from file, rather than hardcoding them here
-  File          plinkFile  # PLINK file for creating the GRM
-  File          phenoFile  # Phenotype file
+  String        plinkPrefix  # PLINK file prefix for creating the GRM
+  File          phenoFile    # Phenotype file
   Array[String] covariants = [
     "sex",  "PC1",  "PC2",  "PC3",  "PC4",  "PC5",  "PC6",
     "PC7",  "PC8",  "PC9",  "PC10", "PC11", "PC12", "PC13",
@@ -51,10 +51,10 @@ workflow SAIGE {
   scatter (p in phenotypes) {
     call FitNullGLMM {
       input:
-        phenotype  = p,
-        plinkFile  = plinkFile,
-        phenoFile  = phenoFile,
-        covariants = covariants
+        phenotype   = p,
+        plinkPrefix = plinkPrefix,
+        phenoFile   = phenoFile,
+        covariants  = covariants
     }
   }
 
@@ -105,7 +105,7 @@ workflow SAIGE {
   scatter (p in phenotypes) {
     call Aggregate {
       input:
-        phenotype    = p,
+        phenotype = p,
 
         # These aren't used by the task directly, but are
         # needed to correctly set up the dependency graph
@@ -123,10 +123,15 @@ workflow SAIGE {
 }
 
 task FitNullGLMM {
-  File          plinkFile
+  String        plinkPrefix
   File          phenoFile
   String        phenotype
   Array[String] covariants
+
+  # These files are needed by SAIGE
+  File plinkBED = "${plinkPrefix}.bed"
+  File plinkBIM = "${plinkPrefix}.bim"
+  File plinkFAM = "${plinkPrefix}.fam"
 
   command {
     # We have to do this in the shell, because there's no
@@ -138,7 +143,7 @@ task FitNullGLMM {
     esac
 
     step1_fitNULLGLMM.R \
-      --plinkFile=${plinkFile} \
+      --plinkFile=${plinkPrefix} \
       --phenoFile=${phenoFile} \
       --phenoCol=${phenotype} \
       --covarColList=${sep=',' covariants} \

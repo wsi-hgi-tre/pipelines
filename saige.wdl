@@ -13,13 +13,13 @@ workflow SAIGE {
   # search for "No allosome yet..." in the code to reinstate.
 
   input {
-    File plinkFile      # PLINK file for creating the GRM
-    File phenoFile      # Phenotype file
-    File autosomeBGENs  # File of bgen filenames, per autosomal chromosome
-    File sampleFile     # File of IDs of samples in the dosage file
+    String plinkPrefix    # PLINK file prefix for creating the GRM
+    File   phenoFile      # Phenotype file
+    File   autosomeBGENs  # File of bgen filenames, per autosomal chromosome
+    File   sampleFile     # File of IDs of samples in the dosage file
 
     # TODO No allosome yet...
-    # File allosomeVCFs   # File of allosomal chromosome-VCF filename pairs, tab-delimited
+    # File   allosomeVCFs   # File of allosomal chromosome-VCF filename pairs, tab-delimited
   }
 
   # TODO Read phenotypes from file, rather than hardcoding them here
@@ -50,10 +50,10 @@ workflow SAIGE {
     # Step 1: Fit Null GLMM
     call FitNullGLMM {
       input:
-        phenotype  = p,
-        plinkFile  = plinkFile,
-        phenoFile  = phenoFile,
-        covariants = covariants
+        phenotype   = p,
+        plinkPrefix = plinkPrefix,
+        phenoFile   = phenoFile,
+        covariants  = covariants
     }
 
     # Step 2: SPA Tests
@@ -102,11 +102,16 @@ workflow SAIGE {
 
 task FitNullGLMM {
   input {
-    File          plinkFile
+    String        plinkPrefix
     File          phenoFile
     String        phenotype
     Array[String] covariants
   }
+
+  # These files are needed by SAIGE
+  File plinkBED = "${plinkPrefix}.bed"
+  File plinkBIM = "${plinkPrefix}.bim"
+  File plinkFAM = "${plinkPrefix}.fam"
 
   command {
     # We have to do this in the shell, because there's no
@@ -118,7 +123,7 @@ task FitNullGLMM {
     esac
 
     step1_fitNULLGLMM.R \
-      --plinkFile=~{plinkFile} \
+      --plinkFile=~{plinkPrefix} \
       --phenoFile=~{phenoFile} \
       --phenoCol=~{phenotype} \
       --covarColList=~{sep=',' covariants} \
