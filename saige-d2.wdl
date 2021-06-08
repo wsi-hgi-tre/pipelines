@@ -142,8 +142,12 @@ task FitNullGLMM {
       *)   exit 1;;
     esac
 
+    # Strip the extension off the TRE-transformed
+    # PLINK files to get the actual prefix
+    PLINK_FILE=$(printf "%s" ${plinkBED} | sed "s/\.bed$//")
+
     step1_fitNULLGLMM.R \
-      --plinkFile=${plinkPrefix} \
+      --plinkFile=$PLINK_FILE \
       --phenoFile=${phenoFile} \
       --phenoCol=${phenotype} \
       --covarColList=${sep=',' covariants} \
