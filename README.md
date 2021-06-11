@@ -17,23 +17,23 @@ things.
 
 ```json
 {
-  "SAIGE.phenotypes":    ["Array", "of", "binary", "and", "continuous", "traits"],
+  "SAIGE.phenotypeFile": "File of traits (one per line)",
 
   "SAIGE.plinkPrefix":   "PLINK file prefix for creating the GRM",
   "SAIGE.phenoFile":     "Phenotype file",
-  "SAIGE.covariants":    ["Array", "of", "covariant", "columns"],
+  "SAIGE.covarFile":     "File of covariants (one per line)",
 
   "SAIGE.SPATestFOFN":   "File of chromosome-SPA filename pairs, tab-delimited",
   "SAIGE.sampleFile":    "File of IDs of samples in the dosage file"
 }
 ```
 
-##### `phenotypes` Array
+##### `phenotypes` File
 
 Each phenotype should be prefixed with `b_` or `c_` for binary or
 continuous traits, respectively.
 
-##### `SPATestFOFN`
+##### `SPATestFOFN` File
 
 The SPA Test FOFN should be a tab-delimited file with fields:
 

@@ -7,12 +7,14 @@
 # Incorporating Sanger requirements by Qinqin Huang <qh1@sanger.ac.uk>
 
 workflow SAIGE {
-  Array[String] phenotypes
+  File          phenotypeFile  # File of traits (one per line)
+  Array[String] phenotypes = read_lines(phenotypeFile)
 
   # Fit Null GLMM Inputs
   String        plinkPrefix  # PLINK file prefix for creating the GRM
   File          phenoFile    # Phenotype file
-  Array[String] covariants   # Covariant columns
+  File          covarFile    # File of covariants (one per line)
+  Array[String] covariants = read_lines(covarFile)
 
   # SPA Test Inputs
   File SPATestFOFN  # File of chromosome-SPA filename pairs, tab-delimited
