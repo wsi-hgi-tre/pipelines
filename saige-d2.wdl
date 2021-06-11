@@ -12,40 +12,16 @@
 # refer to saige.wdl for a clearer idea of what's going on.
 
 workflow SAIGE {
-  # NOTE The allosome part of the workflow has been commented out;
-  # search for "No allosome yet..." in the code to reinstate.
-
-  # TODO Read phenotypes from file, rather than hardcoding them here
-  Array[String] phenotypes = [
-    # Continuous Traits
-    "c_random",  "c_CADSA",  "c_CADmeta", "c_BMI",     "c_HDL",
-    "c_LDL",     "c_TG",
-
-    # Binary Traits
-    "b_CADSA1",  "b_CADSA2", "b_HDL1",    "b_HDL2",    "b_LDL1",
-    "b_LDL2",    "b_BMI1",   "b_BMI2",    "b_random1", "b_random2",
-    "b_random3", "b_random4"
-  ]
+  Array[String] phenotypes
 
   # Fit Null GLMM Inputs
-  # TODO Read covariants from file, rather than hardcoding them here
   String        plinkPrefix  # PLINK file prefix for creating the GRM
   File          phenoFile    # Phenotype file
-  Array[String] covariants = [
-    "sex",  "PC1",  "PC2",  "PC3",  "PC4",  "PC5",  "PC6",
-    "PC7",  "PC8",  "PC9",  "PC10", "PC11", "PC12", "PC13",
-    "PC14", "PC15", "PC16", "PC17", "PC18", "PC19", "PC20"
-  ]
+  Array[String] covariants   # Covariant columns
 
-  # SPA Test Inputs: Autosome
-  File autosomeBGENs  # File of bgen filenames, per autosomal chromosome
-  File sampleFile     # File of IDs of samples in the dosage file
-  Array[String] bgenFiles = read_lines(autosomeBGENs)
-
-  # TODO No allosome yet...
-  # # SPA Test Inputs: Allosome
-  # File allosomeVCFs  # File of allosomal chromosome-VCF filename pairs, tab-delimited
-  # Map[String, String] vcfFiles = read_map(allosomeVCFs)
+  # SPA Test Inputs
+  File SPATestFOFN  # File of chromosome-SPA filename pairs, tab-delimited
+  File sampleFile   # File of IDs of samples in the dosage file
 
   # Step 1: Fit Null GLMM for all phenotypes
   scatter (p in phenotypes) {
@@ -63,43 +39,45 @@ workflow SAIGE {
   # cannot index by the scatter's input value.
   Array[Pair[Int, String]] enumerated_phenotypes = zip(range(length(phenotypes)), phenotypes)
 
-  # Step 2a: SPA Tests for all phenotypes and autosomal chromosomes
-  # NOTE Nested scatters aren't supported by Cromwell and subworkflows
-  # aren't supported in our version of the TRE; hence the cross product
-  # NOTE range(22) is [0, 1, ..., 21] so we have to add 1
-  scatter (phenoXchr in cross(enumerated_phenotypes, range(22))) {
+  # Read the SPA Test input files into a map and extract the keys
+  # NOTE This relies on an undocumented feature described in
+  # https://github.com/openwdl/wdl/issues/106#issuecomment-356047538
+  Map[String, String] SPATestFilesByChr = read_map(SPATestFOFN)
+  scatter (chr_input_pair in SPATestFilesByChr) { String chromosomes = chr_input_pair.left }
+
+  # Step 2: SPA Tests for all phenotypes and given chromosomes
+  # NOTE Nested scatters aren't supported in draft-2 WDL and
+  # subworkflows aren't supported in our version of the TRE; hence the
+  # cross product of arrays
+  scatter (phenoXchr in cross(enumerated_phenotypes, chromosomes)) {
     String p     = phenoXchr.left.right
     Int    p_idx = phenoXchr.left.left
-    Int    chr   = phenoXchr.right
+    String chr   = phenoXchr.right
 
-    call SPATests_Autosome {
-      input:
-        phenotype     = p,
-        chr           = "${chr + 1}",
-        bgenFile      = bgenFiles[chr],
-        sampleFile    = sampleFile,
-        GMMATModel    = FitNullGLMM.GMMATModel[p_idx],
-        varianceRatio = FitNullGLMM.varianceRatio[p_idx]
+    if (!(chr == "X" || chr == "Y")) {
+      call SPATests_Autosome {
+        input:
+          phenotype     = p,
+          chr           = chr,
+          bgenFile      = SPATestFilesByChr[chr],
+          sampleFile    = sampleFile,
+          GMMATModel    = FitNullGLMM.GMMATModel[p_idx],
+          varianceRatio = FitNullGLMM.varianceRatio[p_idx]
+      }
+    }
+
+    if (chr == "X" || chr == "Y") {
+      call SPATests_Allosome {
+        input:
+          phenotype     = p,
+          chr           = chr,
+          vcfFile       = SPATestFilesByChr[chr],
+          vcfIndex      = "${SPATestFilesByChr[chr]}.tbi",
+          GMMATModel    = FitNullGLMM.GMMATModel[p_idx],
+          varianceRatio = FitNullGLMM.varianceRatio[p_idx]
+      }
     }
   }
-
-  # TODO No allosome yet...
-  # # Step 2b: SPA Tests for all phenotypes and allosomal chromosomes
-  # scatter (phenoXchr in cross(enumerated_phenotypes, ["X"])) {
-  #   String p     = phenoXchr.left.right
-  #   Int    p_idx = phenoXchr.left.left
-  #   String chr   = phenoXchr.right
-  #
-  #   call SPATests_Allosome {
-  #     input:
-  #       phenotype     = p,
-  #       chr           = chr,
-  #       vcfFile       = vcfFiles[chr],
-  #       vcfIndex      = "${vcfFiles[chr]}.tbi",
-  #       GMMATModel    = FitNullGLMM.GMMATModel[p_idx],
-  #       varianceRatio = FitNullGLMM.varianceRatio[p_idx]
-  #   }
-  # }
 
   # Step 3: Aggregate
   scatter (p in phenotypes) {
@@ -109,11 +87,8 @@ workflow SAIGE {
 
         # These aren't used by the task directly, but are
         # needed to correctly set up the dependency graph
-        autosomeGWAS = SPATests_Autosome.GWAS,
-
-        # TODO No allosome yet...
-        # allosomeGWAS = SPATests_Allosome.GWAS
-        allosomeGWAS = []
+        autosomeGWAS = select_all(SPATests_Autosome.GWAS),
+        allosomeGWAS = select_all(SPATests_Allosome.GWAS)
     }
   }
 
