@@ -4,9 +4,10 @@
 
 ### SAIGE
 
-**NOTE** `saige.wdl` is the WDL 1.0 workflow, which is easier to
-understand; `saige-d2.wdl` is a WDL `draft-2`-compliant port, without
-subworkflows and hacks, for the TRE.
+**NOTE** `saige-d2.wdl` is the WDL `draft-2`-compliant workflow, without
+any subworkflows and including the hacks needed to work around the TRE's
+assumptions. Additional commentary has been included to help clarify
+things.
 
 #### Containers
 

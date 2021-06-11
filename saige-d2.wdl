@@ -6,11 +6,6 @@
 # Adapted from SLURM scripts by David van Heel <d.vanheel@qmul.ac.uk>
 # Incorporating Sanger requirements by Qinqin Huang <qh1@sanger.ac.uk>
 
-# NOTE This version of the workflow is for the older draft-2 WDL spec,
-# using a cross product to simulate a nested scatter (as the TRE doesn't
-# support subworkflows). It is thus necessarily more complicated. Please
-# refer to saige.wdl for a clearer idea of what's going on.
-
 workflow SAIGE {
   Array[String] phenotypes
 
