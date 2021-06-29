@@ -136,7 +136,7 @@ task FitNullGLMM {
   }
 
   runtime {
-    docker: "eu.gcr.io/fg-qmul-testing-master/saige:0.44.5"
+    docker: "eu.gcr.io/fg-qmul-containers/saige:0.44.5"
     cpu:    8
     memory: "8GiB"
     zones:  "europe-west2-b"  # London
@@ -172,7 +172,7 @@ task SPATests_Autosome {
   }
 
   runtime {
-    docker: "eu.gcr.io/fg-qmul-testing-master/saige:0.44.5"
+    docker: "eu.gcr.io/fg-qmul-containers/saige:0.44.5"
     cpu:    1
     memory: "1GiB"
     zones:  "europe-west2-b"  # London
@@ -210,7 +210,7 @@ task SPATests_Allosome {
   }
 
   runtime {
-    docker: "eu.gcr.io/fg-qmul-testing-master/saige:0.44.5"
+    docker: "eu.gcr.io/fg-qmul-containers/saige:0.44.5"
     cpu:    1
     memory: "1GiB"
     zones:  "europe-west2-b"  # London
@@ -247,7 +247,7 @@ task Aggregate {
   }
 
   runtime {
-    docker: "eu.gcr.io/fg-qmul-testing-master/saige:0.44.5"
+    docker: "eu.gcr.io/fg-qmul-containers/saige:0.44.5"
     cpu:    1
     memory: "1GiB"
     zones:  "europe-west2-b"  # London
